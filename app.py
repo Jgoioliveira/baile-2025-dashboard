@@ -24,10 +24,20 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# ============================================================================
+# EMAILS AUTORIZADOS - EDITE AQUI!
+# ============================================================================
+EMAILS_AUTORIZADOS = [
+    "jorgegoi.oliveira@gmail.com",
+    "dagmarrabelo@gmail.com",
+    "stelaholandaoliver@gmail.com"
+]
+
 SENHA_SECRETA = "baile2025"
 
 if 'autenticado' not in st.session_state:
     st.session_state.autenticado = False
+    st.session_state.email_usuario = None
 
 # ============================================================================
 # TELA DE LOGIN
@@ -68,20 +78,30 @@ if not st.session_state.autenticado:
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
-        st.markdown("### 🔑 Digite a Senha")
+        st.markdown("### 📧 Faça Login")
+        
+        email = st.text_input(
+            "Email:",
+            key="login_email",
+            placeholder="seu-email@gmail.com"
+        )
         
         senha = st.text_input(
             "Senha:",
             type="password",
             key="login_senha",
-            placeholder="Digite a senha para acessar"
+            placeholder="Digite a senha"
         )
         
         if st.button("🔓 Acessar Dashboard", use_container_width=True, type="primary"):
-            if senha == SENHA_SECRETA:
+            if email in EMAILS_AUTORIZADOS and senha == SENHA_SECRETA:
                 st.session_state.autenticado = True
-                st.success("✅ Acesso concedido!")
+                st.session_state.email_usuario = email
+                st.success(f"✅ Bem-vindo, {email}!")
                 st.rerun()
+            elif email not in EMAILS_AUTORIZADOS:
+                st.error(f"❌ Email '{email}' não autorizado!")
+                st.info("💡 Contate o administrador para solicitar acesso")
             else:
                 st.error("❌ Senha incorreta!")
                 st.info("💡 Se esqueceu a senha, contate o administrador")
@@ -96,9 +116,10 @@ else:
     with col3:
         if st.button("🚪 Sair", use_container_width=True):
             st.session_state.autenticado = False
+            st.session_state.email_usuario = None
             st.rerun()
     
-    st.sidebar.success("✅ Você tem acesso autorizado!")
+    st.sidebar.success(f"✅ Logado como: {st.session_state.email_usuario}")
     
     # ====================================================================
     # CARREGAR DADOS
