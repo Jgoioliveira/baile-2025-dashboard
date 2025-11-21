@@ -1,5 +1,5 @@
 # ============================================================================
-# DASHBOARD BAILE 2025 - AUTENTICAÇÃO GOOGLE (OPÇÃO 2)
+# DASHBOARD BAILE 2025 - COM AUTENTICAÇÃO VIA SENHA
 # ============================================================================
 
 import streamlit as st
@@ -24,14 +24,9 @@ st.set_page_config(
 )
 
 # ============================================================================
-# USUÁRIOS AUTORIZADOS (EDITE COM SEUS EMAILS)
+# CONFIGURAÇÃO DE SEGURANÇA
 # ============================================================================
-USUARIOS_AUTORIZADOS = [
-    "stelaholandaoliver@gmail.com",
-    "jorgegoi.oliveira@gmail.com"
-]
-
-SENHA_SECRETA = "@baile2025"  # ← EDITE AQUI A SENHA
+SENHA_SECRETA = "baile2025"  # ← EDITE AQUI A SENHA DESEJADA
 
 # ============================================================================
 # ESTADO DE AUTENTICAÇÃO
