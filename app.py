@@ -27,7 +27,7 @@ st.set_page_config(
 
 SENHA_SECRETA = "baile2025"
 GOOGLE_DRIVE_FILE_ID = "1bKyxuaOkGHKkVx2e5gdYISMi7zckmyjy"
-REFRESH_INTERVAL = 60  # 5 minutos em segundos
+REFRESH_INTERVAL = 300  # 5 minutos em segundos
 
 # ============================================================================
 # INICIALIZAR SESSION STATE
