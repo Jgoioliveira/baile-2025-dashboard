@@ -1,5 +1,5 @@
 # ============================================================================
-# DASHBOARD BAILE 2025 - VERSÃO STREAMLIT CORRIGIDA (COM REFRESH)
+# DASHBOARD BAILE 2025 - VERSÃO STREAMLIT COM AUTO-REFRESH
 # ============================================================================
 
 import streamlit as st
@@ -10,7 +10,8 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import gdown
 import warnings
-from datetime import datetime
+from datetime import datetime, timedelta
+import time
 import os
 
 warnings.filterwarnings('ignore')
@@ -27,9 +28,16 @@ st.set_page_config(
 
 SENHA_SECRETA = "baile2025"
 GOOGLE_DRIVE_FILE_ID = "1bKyxuaOkGHKkVx2e5gdYISMi7zckmyjy"
+REFRESH_INTERVAL = 300  # 5 minutos em segundos
 
 if 'autenticado' not in st.session_state:
     st.session_state.autenticado = False
+
+if 'ultimo_refresh' not in st.session_state:
+    st.session_state.ultimo_refresh = datetime.now()
+
+if 'proximo_refresh' not in st.session_state:
+    st.session_state.proximo_refresh = datetime.now() + timedelta(seconds=REFRESH_INTERVAL)
 
 # ============================================================================
 # TELA DE LOGIN
@@ -101,6 +109,17 @@ else:
             st.rerun()
     
     st.sidebar.success("✅ Você tem acesso autorizado!")
+    
+    # ====================================================================
+    # AUTO-REFRESH LOGIC
+    # ====================================================================
+    agora = datetime.now()
+    tempo_para_proximo = (st.session_state.proximo_refresh - agora).total_seconds()
+    
+    if tempo_para_proximo <= 0:
+        st.session_state.ultimo_refresh = agora
+        st.session_state.proximo_refresh = agora + timedelta(seconds=REFRESH_INTERVAL)
+        st.rerun()
     
     # ====================================================================
     # CARREGAR DADOS - VERSÃO SEM CACHE PERMANENTE
@@ -175,14 +194,32 @@ else:
     col_refresh1, col_refresh2 = st.sidebar.columns(2)
     
     with col_refresh1:
-        if st.button("🔄 Atualizar Dados", use_container_width=True, type="primary"):
-            st.session_state.force_refresh = True
+        if st.button("🔄 Atualizar Agora", use_container_width=True, type="primary"):
+            st.session_state.ultimo_refresh = datetime.now()
+            st.session_state.proximo_refresh = datetime.now() + timedelta(seconds=REFRESH_INTERVAL)
             st.rerun()
     
     with col_refresh2:
         if st.button("🗑️ Limpar Cache", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
+    
+    # Status do auto-refresh
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### ⏱️ Status Auto-Refresh")
+    
+    col_status1, col_status2 = st.sidebar.columns(2)
+    
+    with col_status1:
+        st.caption(f"📍 Último: {st.session_state.ultimo_refresh.strftime('%H:%M:%S')}")
+    
+    with col_status2:
+        tempo_restante = max(0, int((st.session_state.proximo_refresh - datetime.now()).total_seconds()))
+        minutos = tempo_restante // 60
+        segundos = tempo_restante % 60
+        st.caption(f"⏳ Próximo em: {minutos}m {segundos}s")
+    
+    st.sidebar.info("🔁 **Auto-refresh a cada 5 minutos**\n\nOs dados são atualizados automaticamente do Google Drive!")
     
     st.sidebar.markdown("---")
     
@@ -407,7 +444,7 @@ else:
         # Footer
         st.markdown(f"""
             <div style="text-align: center; color: #666; font-size: 12px;">
-                ✨ Atualizado em: {datetime.now().strftime('%d/%m/%Y às %H:%M:%S')}
+                ✨ Atualizado em: {st.session_state.ultimo_refresh.strftime('%d/%m/%Y às %H:%M:%S')}
                 <br>
                 Dashboard Baile 2025 © 2025
             </div>
