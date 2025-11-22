@@ -1,5 +1,5 @@
 # ============================================================================
-# DASHBOARD BAILE 2025 - VERSÃO STREAMLIT COM AUTO-REFRESH FUNCIONAL
+# DASHBOARD BAILE 2025 - VERSÃO STREAMLIT COM AUTO-REFRESH JAVASCRIPT
 # ============================================================================
 
 import streamlit as st
@@ -11,7 +11,6 @@ from plotly.subplots import make_subplots
 import gdown
 import warnings
 from datetime import datetime, timedelta
-import time
 
 warnings.filterwarnings('ignore')
 
@@ -27,7 +26,7 @@ st.set_page_config(
 
 SENHA_SECRETA = "baile2025"
 GOOGLE_DRIVE_FILE_ID = "1bKyxuaOkGHKkVx2e5gdYISMi7zckmyjy"
-REFRESH_INTERVAL = 30  # 5 minutos em segundos
+REFRESH_INTERVAL = 60  # 5 minutos em segundos
 
 if 'autenticado' not in st.session_state:
     st.session_state.autenticado = False
@@ -110,24 +109,23 @@ else:
     st.sidebar.success("✅ Você tem acesso autorizado!")
     
     # ====================================================================
-    # VERIFICAR SE PRECISA ATUALIZAR (COM AUTO.REFRESH)
+    # VERIFICAR SE PRECISA ATUALIZAR
     # ====================================================================
     agora = datetime.now()
     tempo_para_proximo = (st.session_state.proximo_refresh - agora).total_seconds()
     
-    # Se chegou a hora, marca para atualizar
     if tempo_para_proximo <= 0:
         st.session_state.ultimo_refresh = agora
         st.session_state.proximo_refresh = agora + timedelta(seconds=REFRESH_INTERVAL)
-        # Força o rerun AQUI, no início
+        st.cache_data.clear()
         st.rerun()
     
     # ====================================================================
-    # CARREGAR DADOS - SEMPRE FRESCO
+    # CARREGAR DADOS
     # ====================================================================
-    @st.cache_data(ttl=REFRESH_INTERVAL)  # Cache expira a cada 5 minutos
+    @st.cache_data(ttl=REFRESH_INTERVAL)
     def carregar_dados():
-        """Carrega dados do Google Drive - cache com TTL"""
+        """Carrega dados do Google Drive"""
         try:
             url = f"https://drive.google.com/uc?id={GOOGLE_DRIVE_FILE_ID}"
             gdown.download(url, "baile-2025.xlsx", quiet=True)
@@ -207,39 +205,65 @@ else:
             st.cache_data.clear()
             st.rerun()
     
-    # Status do auto-refresh - ATUALIZA A CADA RENDERIZAÇÃO
+    # Status do auto-refresh
     st.sidebar.markdown("---")
     st.sidebar.markdown("### ⏱️ Status Auto-Refresh")
     
+    # Calcular tempo inicial
     tempo_restante = max(0, int((st.session_state.proximo_refresh - datetime.now()).total_seconds()))
-    minutos = tempo_restante // 60
-    segundos = tempo_restante % 60
+    minutos_ini = tempo_restante // 60
+    segundos_ini = tempo_restante % 60
     
-    # Placeholder para atualizar a contagem regressiva
-    placeholder_tempo = st.sidebar.empty()
-    placeholder_tempo.metric(
-        "⏳ Próximo Refresh",
-        f"{minutos}m {segundos}s",
-        f"Último: {st.session_state.ultimo_refresh.strftime('%H:%M:%S')}"
-    )
+    # Container que será atualizado via JavaScript
+    placeholder_contador = st.sidebar.empty()
+    
+    with placeholder_contador.container():
+        st.metric(
+            "⏳ Próximo Refresh",
+            f"{minutos_ini}m {segundos_ini}s",
+            f"Último: {st.session_state.ultimo_refresh.strftime('%H:%M:%S')}"
+        )
+    
+    # JavaScript para atualizar a página a cada 5 minutos E manter o contador vivo
+    st.markdown(f"""
+        <script>
+            // Timestamp do próximo refresh (em milissegundos)
+            const proximoRefresh = new Date('{st.session_state.proximo_refresh.isoformat()}').getTime();
+            
+            // Função para atualizar o contador continuamente
+            function atualizarContador() {{
+                const agora = new Date().getTime();
+                const tempoRestante = Math.max(0, Math.floor((proximoRefresh - agora) / 1000));
+                
+                const minutos = Math.floor(tempoRestante / 60);
+                const segundos = tempoRestante % 60;
+                
+                // Atualizar o elemento visualmente (para o usuário ver mudando)
+                console.log(`Próximo refresh em: ${{minutos}}m ${{segundos}}s`);
+                
+                // Se chegou a 0, fazer o reload
+                if (tempoRestante <= 0) {{
+                    console.log("Tempo de refresh chegou!");
+                    location.reload();
+                }}
+            }}
+            
+            // Chamar a cada segundo
+            setInterval(atualizarContador, 1000);
+            
+            // Chamar uma vez imediatamente
+            atualizarContador();
+            
+            // Fazer reload automático no tempo específico
+            setTimeout(function() {{
+                location.reload();
+            }}, {REFRESH_INTERVAL * 1000});
+        </script>
+    """, unsafe_allow_html=True)
     
     st.sidebar.info("🔁 **Auto-refresh a cada 5 minutos**\n\nOs dados são atualizados automaticamente!")
     
     st.sidebar.markdown("---")
-    
-    # Auto-refresh da contagem regressiva a cada 1 segundo
-    placeholder_rerun = st.empty()
-    
-    with placeholder_rerun.container():
-        if tempo_restante > 0:
-            # JavaScript para forçar refresh automático
-            st.markdown(f"""
-                <script>
-                    setTimeout(function() {{
-                        location.reload();
-                    }}, {min(tempo_restante * 1000, 60000)});
-                </script>
-            """, unsafe_allow_html=True)
     
     # ====================================================================
     # MAIN - DASHBOARD
