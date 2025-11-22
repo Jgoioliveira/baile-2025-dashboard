@@ -1,5 +1,5 @@
 # ============================================================================
-# DASHBOARD BAILE 2025 - VERSÃO STREAMLIT COM AUTO-REFRESH
+# DASHBOARD BAILE 2025 - VERSÃO STREAMLIT COM AUTO-REFRESH FUNCIONAL
 # ============================================================================
 
 import streamlit as st
@@ -12,7 +12,6 @@ import gdown
 import warnings
 from datetime import datetime, timedelta
 import time
-import os
 
 warnings.filterwarnings('ignore')
 
@@ -111,21 +110,24 @@ else:
     st.sidebar.success("✅ Você tem acesso autorizado!")
     
     # ====================================================================
-    # AUTO-REFRESH LOGIC
+    # VERIFICAR SE PRECISA ATUALIZAR (COM AUTO.REFRESH)
     # ====================================================================
     agora = datetime.now()
     tempo_para_proximo = (st.session_state.proximo_refresh - agora).total_seconds()
     
+    # Se chegou a hora, marca para atualizar
     if tempo_para_proximo <= 0:
         st.session_state.ultimo_refresh = agora
         st.session_state.proximo_refresh = agora + timedelta(seconds=REFRESH_INTERVAL)
+        # Força o rerun AQUI, no início
         st.rerun()
     
     # ====================================================================
-    # CARREGAR DADOS - VERSÃO SEM CACHE PERMANENTE
+    # CARREGAR DADOS - SEMPRE FRESCO
     # ====================================================================
+    @st.cache_data(ttl=REFRESH_INTERVAL)  # Cache expira a cada 5 minutos
     def carregar_dados():
-        """Carrega dados do Google Drive sempre que chamado"""
+        """Carrega dados do Google Drive - cache com TTL"""
         try:
             url = f"https://drive.google.com/uc?id={GOOGLE_DRIVE_FILE_ID}"
             gdown.download(url, "baile-2025.xlsx", quiet=True)
@@ -197,6 +199,7 @@ else:
         if st.button("🔄 Atualizar Agora", use_container_width=True, type="primary"):
             st.session_state.ultimo_refresh = datetime.now()
             st.session_state.proximo_refresh = datetime.now() + timedelta(seconds=REFRESH_INTERVAL)
+            st.cache_data.clear()
             st.rerun()
     
     with col_refresh2:
@@ -204,24 +207,39 @@ else:
             st.cache_data.clear()
             st.rerun()
     
-    # Status do auto-refresh
+    # Status do auto-refresh - ATUALIZA A CADA RENDERIZAÇÃO
     st.sidebar.markdown("---")
     st.sidebar.markdown("### ⏱️ Status Auto-Refresh")
     
-    col_status1, col_status2 = st.sidebar.columns(2)
+    tempo_restante = max(0, int((st.session_state.proximo_refresh - datetime.now()).total_seconds()))
+    minutos = tempo_restante // 60
+    segundos = tempo_restante % 60
     
-    with col_status1:
-        st.caption(f"📍 Último: {st.session_state.ultimo_refresh.strftime('%H:%M:%S')}")
+    # Placeholder para atualizar a contagem regressiva
+    placeholder_tempo = st.sidebar.empty()
+    placeholder_tempo.metric(
+        "⏳ Próximo Refresh",
+        f"{minutos}m {segundos}s",
+        f"Último: {st.session_state.ultimo_refresh.strftime('%H:%M:%S')}"
+    )
     
-    with col_status2:
-        tempo_restante = max(0, int((st.session_state.proximo_refresh - datetime.now()).total_seconds()))
-        minutos = tempo_restante // 60
-        segundos = tempo_restante % 60
-        st.caption(f"⏳ Próximo em: {minutos}m {segundos}s")
-    
-    st.sidebar.info("🔁 **Auto-refresh a cada 5 minutos**\n\nOs dados são atualizados automaticamente do Google Drive!")
+    st.sidebar.info("🔁 **Auto-refresh a cada 5 minutos**\n\nOs dados são atualizados automaticamente!")
     
     st.sidebar.markdown("---")
+    
+    # Auto-refresh da contagem regressiva a cada 1 segundo
+    placeholder_rerun = st.empty()
+    
+    with placeholder_rerun.container():
+        if tempo_restante > 0:
+            # JavaScript para forçar refresh automático
+            st.markdown(f"""
+                <script>
+                    setTimeout(function() {{
+                        location.reload();
+                    }}, {min(tempo_restante * 1000, 60000)});
+                </script>
+            """, unsafe_allow_html=True)
     
     # ====================================================================
     # MAIN - DASHBOARD
