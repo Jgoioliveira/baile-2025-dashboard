@@ -1,5 +1,5 @@
 # ============================================================================
-# DASHBOARD BAILE 2025 - VERSÃO STREAMLIT COMPLETA
+# DASHBOARD BAILE 2025 - VERSÃO STREAMLIT CORRIGIDA (COM REFRESH)
 # ============================================================================
 
 import streamlit as st
@@ -11,6 +11,7 @@ from plotly.subplots import make_subplots
 import gdown
 import warnings
 from datetime import datetime
+import os
 
 warnings.filterwarnings('ignore')
 
@@ -25,6 +26,7 @@ st.set_page_config(
 )
 
 SENHA_SECRETA = "baile2025"
+GOOGLE_DRIVE_FILE_ID = "1bKyxuaOkGHKkVx2e5gdYISMi7zckmyjy"
 
 if 'autenticado' not in st.session_state:
     st.session_state.autenticado = False
@@ -101,12 +103,10 @@ else:
     st.sidebar.success("✅ Você tem acesso autorizado!")
     
     # ====================================================================
-    # CARREGAR DADOS
+    # CARREGAR DADOS - VERSÃO SEM CACHE PERMANENTE
     # ====================================================================
-    @st.cache_data
     def carregar_dados():
-        GOOGLE_DRIVE_FILE_ID = "1bKyxuaOkGHKkVx2e5gdYISMi7zckmyjy"
-        
+        """Carrega dados do Google Drive sempre que chamado"""
         try:
             url = f"https://drive.google.com/uc?id={GOOGLE_DRIVE_FILE_ID}"
             gdown.download(url, "baile-2025.xlsx", quiet=True)
@@ -167,6 +167,25 @@ else:
     def formatar_moeda(valor):
         return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
+    # ====================================================================
+    # SIDEBAR - CONTROLE DE REFRESH
+    # ====================================================================
+    st.sidebar.markdown("### 🔄 Controle de Dados")
+    
+    col_refresh1, col_refresh2 = st.sidebar.columns(2)
+    
+    with col_refresh1:
+        if st.button("🔄 Atualizar Dados", use_container_width=True, type="primary"):
+            st.session_state.force_refresh = True
+            st.rerun()
+    
+    with col_refresh2:
+        if st.button("🗑️ Limpar Cache", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+    
+    st.sidebar.markdown("---")
+    
     # ====================================================================
     # MAIN - DASHBOARD
     # ====================================================================
