@@ -1,5 +1,5 @@
 # ============================================================================
-# DASHBOARD BAILE 2025 - VERSÃO STREAMLIT COM AUTO-REFRESH REAL
+# DASHBOARD BAILE 2025 - VERSÃO STREAMLIT COM AUTO-REFRESH + AUTH PERSISTENTE
 # ============================================================================
 
 import streamlit as st
@@ -11,6 +11,7 @@ from plotly.subplots import make_subplots
 import gdown
 import warnings
 from datetime import datetime, timedelta
+import json
 
 warnings.filterwarnings('ignore')
 
@@ -28,6 +29,9 @@ SENHA_SECRETA = "baile2025"
 GOOGLE_DRIVE_FILE_ID = "1bKyxuaOkGHKkVx2e5gdYISMi7zckmyjy"
 REFRESH_INTERVAL = 60  # 5 minutos em segundos
 
+# ============================================================================
+# INICIALIZAR SESSION STATE
+# ============================================================================
 if 'autenticado' not in st.session_state:
     st.session_state.autenticado = False
 
@@ -36,6 +40,17 @@ if 'ultimo_refresh' not in st.session_state:
 
 if 'proximo_refresh' not in st.session_state:
     st.session_state.proximo_refresh = datetime.now() + timedelta(seconds=REFRESH_INTERVAL)
+
+# ============================================================================
+# PERSISTÊNCIA DE AUTENTICAÇÃO (QUERY PARAMS)
+# ============================================================================
+query_params = st.query_params
+
+# Se há um token na URL, valida automaticamente
+if 'token' in query_params and query_params['token'] == SENHA_SECRETA:
+    st.session_state.autenticado = True
+elif 'autenticado' in query_params and query_params['autenticado'] == 'true':
+    st.session_state.autenticado = True
 
 # ============================================================================
 # TELA DE LOGIN
@@ -88,6 +103,8 @@ if not st.session_state.autenticado:
         if st.button("🔓 Acessar Dashboard", use_container_width=True, type="primary"):
             if senha == SENHA_SECRETA:
                 st.session_state.autenticado = True
+                # Salvar token na URL para persistência
+                st.query_params['token'] = SENHA_SECRETA
                 st.success("✅ Acesso concedido!")
                 st.rerun()
             else:
@@ -104,12 +121,14 @@ else:
     with col3:
         if st.button("🚪 Sair", use_container_width=True):
             st.session_state.autenticado = False
+            # Remover token da URL
+            del st.query_params['token']
             st.rerun()
     
     st.sidebar.success("✅ Você tem acesso autorizado!")
     
     # ====================================================================
-    # AUTO-REFRESH COM st.session_state (FUNCIONA NO STREAMLIT CLOUD!)
+    # AUTO-REFRESH COM st.session_state
     # ====================================================================
     agora = datetime.now()
     tempo_para_proximo = (st.session_state.proximo_refresh - agora).total_seconds()
@@ -227,7 +246,7 @@ else:
     st.sidebar.markdown("---")
     
     # ====================================================================
-    # FORÇAR RERUN COM st.rerun() A CADA 1 SEGUNDO (STREAMLIT POLLING)
+    # FORÇAR RERUN COM META TAG
     # ====================================================================
     st.markdown(f"""
         <meta http-equiv="refresh" content="{REFRESH_INTERVAL}">
